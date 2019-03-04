@@ -1,0 +1,75 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar  2 10:37:19 2019
+
+@author: Administrator
+"""
+
+from math import *
+import numpy as np
+import cv2 as cv
+
+def calH(P,Q):
+    '''计算H
+    Args:
+        P:输入图像的点的坐标
+        Q:参考图像的点的坐标
+    '''
+    H=Q*P.I
+    return H
+
+def bilinearityInterplotation(img,target,T):
+    '''双线性灰度内插
+    Args:
+        img   :原始图片
+        target:目标图片
+        T     :仿射矩阵
+    '''
+    (X,Y,Z) = img.shape
+    (x,y,Z) = target.shape
+    _T = T.I
+    for i in tqdm(range(x)):
+        for j in range(y):
+            xy = (_T*mat([i,j,1]).T).T
+            ii = xy[0,0]
+            jj = xy[0,1]
+            I  = int(ii)
+            U  = ii-I
+            J  = int(jj)
+            V  = jj-J         
+            
+            if 0<=I<X and 0<=J<Y:
+                weight = [(1-U)*(1-V),(1-U)*V,U*(1-V),U*V]                
+                for k in range(Z):                
+                    try:
+                        target[i,j,k] = weight[0]*img[I,J,k]+weight[1]*img[I,J+1,k]+weight[2]*img[I+1,J,k]+weight[3]*img[I+1,J+1,k]
+                    except:
+                        target[i,j,k] = 0
+            else:
+                target[i,j] = [0,0,0]
+                
+def imageMap(A,B,H,name):
+    '''图像配准
+    Args:
+        A:输入图像
+        B:参考图像
+        H:变换矩阵
+        name:配准后图像名字
+    '''
+    (x,y,z)=B.shape
+    target=np.empty([x,y,z],dtype=np.uint8)
+    bilinearityInterplotation(A,target,H)
+    cv.imshow("Map",target)
+    cv.waitKey(0)
+    cv.destroyAllWindows()
+    cv.imwrite("./map"+name+".bmp",target)
+   
+#人工选择7个点
+Q=mat([[1694,1196,1],[2290,935,1],[2294,1210,1],[2035,2575,1],[1164,2847,1],[1341,257,1],[858,1672,1]]).T
+P=mat([[1252,906,1],[1762,502,1],[1836,767,1],[1936,2151,1],[1162,2640,1],[670,88,1],[566,1581,1]]).T
+H=calH(P,Q)
+print(H)
+
+A=cv.imread("./Image A.jpg")
+B=cv.imread("./Image B.jpg")
+imageMap(B,A,H,"B")
